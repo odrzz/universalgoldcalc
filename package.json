@@ -45,5 +45,8 @@
   },
   "subPackages": [
     "calc"
-  ]
+  ],
+  "allowScripts": {
+    "file:../../calc": true
+  }
 }

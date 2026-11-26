@@ -1,3 +1,4 @@
+import {UG_ABILITIES} from './species_ug';
 import * as I from './interface';
 import {toID} from '../util';
 
@@ -327,6 +328,7 @@ const SV = SS.concat([
   'Zero to Hero',
 ]);
 
+for (const gen of [SS, SV]) for (const a of (UG_ABILITIES || [])) if (!(gen as string[]).includes(a)) (gen as string[]).push(a);
 export const ABILITIES = [[], RBY, GSC, ADV, DPP, BW, XY, SM, SS, SV];
 
 export class Abilities implements I.Abilities {

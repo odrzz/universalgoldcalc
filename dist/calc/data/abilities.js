@@ -37,9 +37,10 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-var e_1, _a, e_2, _b;
+var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
 exports.__esModule = true;
 
+var species_ug_1 = require("./species_ug");
 var util_1 = require("../util");
 var RBY = [];
 var GSC = [];
@@ -358,6 +359,32 @@ var SV = SS.concat([
     'Wind Rider',
     'Zero to Hero',
 ]);
+try {
+    for (var _e = __values([SS, SV]), _f = _e.next(); !_f.done; _f = _e.next()) {
+        var gen = _f.value;
+        try {
+            for (var _g = (e_2 = void 0, __values((species_ug_1.UG_ABILITIES || []))), _h = _g.next(); !_h.done; _h = _g.next()) {
+                var a = _h.value;
+                if (!gen.includes(a))
+                    gen.push(a);
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (_h && !_h.done && (_b = _g["return"])) _b.call(_g);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
+    }
+}
+catch (e_1_1) { e_1 = { error: e_1_1 }; }
+finally {
+    try {
+        if (_f && !_f.done && (_a = _e["return"])) _a.call(_e);
+    }
+    finally { if (e_1) throw e_1.error; }
+}
 exports.ABILITIES = [[], RBY, GSC, ADV, DPP, BW, XY, SM, SS, SV];
 var Abilities = (function () {
     function Abilities(gen) {
@@ -410,27 +437,27 @@ try {
         var abilities = ABILITIES_1_1.value;
         var map = {};
         try {
-            for (var abilities_1 = (e_2 = void 0, __values(abilities)), abilities_1_1 = abilities_1.next(); !abilities_1_1.done; abilities_1_1 = abilities_1.next()) {
+            for (var abilities_1 = (e_4 = void 0, __values(abilities)), abilities_1_1 = abilities_1.next(); !abilities_1_1.done; abilities_1_1 = abilities_1.next()) {
                 var ability = abilities_1_1.value;
                 var a = new Ability(ability);
                 map[a.id] = a;
             }
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
-                if (abilities_1_1 && !abilities_1_1.done && (_b = abilities_1["return"])) _b.call(abilities_1);
+                if (abilities_1_1 && !abilities_1_1.done && (_d = abilities_1["return"])) _d.call(abilities_1);
             }
-            finally { if (e_2) throw e_2.error; }
+            finally { if (e_4) throw e_4.error; }
         }
         ABILITIES_BY_ID.push(map);
     }
 }
-catch (e_1_1) { e_1 = { error: e_1_1 }; }
+catch (e_3_1) { e_3 = { error: e_3_1 }; }
 finally {
     try {
-        if (ABILITIES_1_1 && !ABILITIES_1_1.done && (_a = ABILITIES_1["return"])) _a.call(ABILITIES_1);
+        if (ABILITIES_1_1 && !ABILITIES_1_1.done && (_c = ABILITIES_1["return"])) _c.call(ABILITIES_1);
     }
-    finally { if (e_1) throw e_1.error; }
+    finally { if (e_3) throw e_3.error; }
 }
 //# sourceMappingURL=abilities.js.map

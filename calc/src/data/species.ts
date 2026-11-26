@@ -1,4 +1,5 @@
-﻿import * as I from './interface';
+﻿import {UG_SPECIES} from './species_ug';
+import * as I from './interface';
 import {toID, extend, DeepPartial, assignWithout} from '../util';
 
 export interface SpeciesData {
@@ -9757,6 +9758,7 @@ const SV_PATCH: {[name: string]: DeepPartial<SpeciesData>} = {
 
 const SV: {[name: string]: SpeciesData} = extend(true, {}, SS, SV_PATCH, PLA_PATCH);
 
+for (const gen of [SS, SV]) Object.assign(gen, UG_SPECIES);
 export const SPECIES = [{}, RBY, GSC, ADV, DPP, BW, XY, SM, SS, SV];
 
 export class Species implements I.Species {

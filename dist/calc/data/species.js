@@ -26,6 +26,17 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __values = (this && this.__values) || function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+};
 var __read = (this && this.__read) || function (o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
@@ -51,20 +62,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-var e_1, _a;
+var e_1, _a, e_2, _b;
 exports.__esModule = true;
 
+var species_ug_1 = require("./species_ug");
 var util_1 = require("../util");
 var RBY = {
     Abra: {
@@ -9771,6 +9772,19 @@ var SV_PATCH = {
     }
 };
 var SV = (0, util_1.extend)(true, {}, SS, SV_PATCH, PLA_PATCH);
+try {
+    for (var _c = __values([SS, SV]), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var gen_1 = _d.value;
+        Object.assign(gen_1, species_ug_1.UG_SPECIES);
+    }
+}
+catch (e_1_1) { e_1 = { error: e_1_1 }; }
+finally {
+    try {
+        if (_d && !_d.done && (_a = _c["return"])) _a.call(_c);
+    }
+    finally { if (e_1) throw e_1.error; }
+}
 exports.SPECIES = [{}, RBY, GSC, ADV, DPP, BW, XY, SM, SS, SV];
 var Species = (function () {
     function Species(gen) {
@@ -9853,11 +9867,11 @@ try {
         gen++;
     }
 }
-catch (e_1_1) { e_1 = { error: e_1_1 }; }
+catch (e_2_1) { e_2 = { error: e_2_1 }; }
 finally {
     try {
-        if (SPECIES_1_1 && !SPECIES_1_1.done && (_a = SPECIES_1["return"])) _a.call(SPECIES_1);
+        if (SPECIES_1_1 && !SPECIES_1_1.done && (_b = SPECIES_1["return"])) _b.call(SPECIES_1);
     }
-    finally { if (e_1) throw e_1.error; }
+    finally { if (e_2) throw e_2.error; }
 }
 //# sourceMappingURL=species.js.map
