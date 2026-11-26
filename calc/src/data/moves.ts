@@ -1,3 +1,4 @@
+import {applyUGMoves} from './species_ug';
 import * as I from '../data/interface';
 import {toID, DeepPartial, assignWithout, extend} from '../util';
 
@@ -4750,6 +4751,7 @@ const SV_PATCH: {[name: string]: DeepPartial<MoveData>} = {
 
 const SV: {[name: string]: MoveData} = extend(true, {}, SS, SV_PATCH);
 
+for (const gen of [SS, SV]) applyUGMoves(gen);
 export const MOVES = [{}, RBY, GSC, ADV, DPP, BW, XY, SM, SS, SV];
 
 export class Moves implements I.Moves {

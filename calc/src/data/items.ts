@@ -1,3 +1,4 @@
+import {UG_ITEMS} from './species_ug';
 import * as I from './interface';
 import {toID} from '../util';
 
@@ -566,6 +567,7 @@ const BERRIES: {[berry: string]: {t: I.TypeName; p: number}} = {
   'Yache Berry': {t: 'Ice', p: 80},
 };
 
+for (const gen of [SS, SV]) for (const i of (UG_ITEMS || [])) if (!(gen as string[]).includes(i)) (gen as string[]).push(i);
 export const ITEMS = [[], RBY, GSC, ADV, DPP, BW, XY, SM, SS, SV];
 
 export class Items implements I.Items {
