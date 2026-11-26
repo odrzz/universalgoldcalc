@@ -1,3 +1,40 @@
+// Universal Gold: if an icon isn't in the online sprite collection, use our own copy in img/icons.
+// If that's missing too, fall back to the base form's icon (Chimecho-Mega -> Chimecho).
+var UG_ICON_SIZE = 32;
+var UG_SPRITE_URL = 'https://raw.githubusercontent.com/May8th1995/sprites/master/';
+
+document.addEventListener('error', function (e) {
+  var img = e.target;
+  if (img.tagName !== 'IMG') return;
+  var src = img.src;
+  var isOnline = src.indexOf('May8th1995/sprites') !== -1;
+  var isOurs = src.indexOf('/img/icons/') !== -1;
+  if (isOnline && src !== img.dataset.ugTried) {
+    // A new icon failed online: try our own copy
+    img.dataset.ugName = decodeURIComponent(src.split('/').pop().replace(/\.png$/, ''));
+    img.src = './img/icons/' + encodeURIComponent(img.dataset.ugName) + '.png';
+  } else if (isOurs || src === img.dataset.ugTried) {
+    // Ours is missing too: try the online icon for the name minus its last part
+    var name = img.dataset.ugName || '';
+    var cut = name.lastIndexOf('-');
+    if (cut <= 0) return;
+    img.dataset.ugName = name.slice(0, cut);
+    img.dataset.ugTried = UG_SPRITE_URL + encodeURIComponent(img.dataset.ugName) + '.png';
+    img.src = img.dataset.ugTried;
+  }
+}, true);
+
+// Size our own icons to match; give online icons their normal size back when a slot is reused
+document.addEventListener('load', function (e) {
+  var img = e.target;
+  if (img.tagName !== 'IMG') return;
+  var isOurs = img.src.indexOf('/img/icons/') !== -1;
+  if (!isOurs && img.src.indexOf('May8th1995/sprites') === -1) return;
+  img.style.width = isOurs ? UG_ICON_SIZE + 'px' : '';
+  img.style.height = isOurs ? UG_ICON_SIZE + 'px' : '';
+  img.style.imageRendering = isOurs ? 'pixelated' : '';
+}, true);
+
 if (!Array.prototype.indexOf) {
 	Array.prototype.indexOf = function (searchElement, fromIndex) { // eslint-disable-line no-extend-native
 		var k;

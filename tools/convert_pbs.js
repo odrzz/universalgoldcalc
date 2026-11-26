@@ -404,6 +404,13 @@ fs.writeFileSync(SPECIES_FILE,
   '  }\n' +
   '}\n');
 
+// Which Essentials icon file goes with each calc form name, for tools/copy_icons.ps1.
+const iconMap = {};
+for (const [key, name] of Object.entries(formNames)) {
+  if (!iconMap[name]) iconMap[name] = key.replace(',', '_');
+}
+fs.writeFileSync(path.join(__dirname, 'icon_map.json'), JSON.stringify(iconMap, null, 1));
+
 console.log(`Wrote ${index} Pokémon from ${trainerCount} trainers to ${SETDEX_FILE}`);
 console.log(`Wrote ${Object.keys(species).length} species and forms to ${SPECIES_FILE}`);
 if (warnings.size) {
