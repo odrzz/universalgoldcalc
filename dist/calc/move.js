@@ -47,7 +47,7 @@ var Move = (function () {
                     this.hits = options.hits;
                 }
                 else {
-                    this.hits = (options.ability === 'Skill Link')
+                    this.hits = (options.ability === 'Skill Link' || options.ability === 'Triple Assault')
                         ? data.multihit[1]
                         : data.multihit[0] + 1;
                 }

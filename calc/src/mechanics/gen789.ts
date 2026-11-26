@@ -1,4 +1,4 @@
-import {Generation, AbilityName, StatID, Terrain} from '../data/interface';
+import {Generation, AbilityName, StatID, Terrain, TypeName} from '../data/interface';
 import {toID} from '../util';
 import {
   getBerryResistType,
@@ -64,6 +64,13 @@ export function calculateSMSSSV(
   checkSeedBoost(defender, field);
   checkDauntlessShield(attacker, gen);
   checkDauntlessShield(defender, gen);
+  // Universal Gold: Hivemind (-1 to all stats at 33% HP or less) and Divination (+1 Def or Sp. Def)
+  // (skipped for Parental Bond's second hit, since the first hit already applied them)
+  if (!attacker.hasAbility('Parental Bond (Child)')) {
+    checkHivemind(attacker);
+    checkHivemind(defender);
+    checkDivination(gen, attacker, defender, move);
+  }
 
   computeFinalStats(gen, attacker, defender, field, 'def', 'spd', 'spe');
 
@@ -197,6 +204,7 @@ export function calculateSMSSSV(
   let isGalvanize = false;
   let isLiquidVoice = false;
   let isNormalize = false;
+  let isUGTypeChange = false; // Universal Gold: Incandescence, Dragonize, Iron Maw
   const noTypeChange = move.named(
     'Revelation Dance',
     'Judgment',
@@ -220,10 +228,16 @@ export function calculateSMSSSV(
       type = 'Fairy';
     } else if ((isRefrigerate = attacker.hasAbility('Refrigerate') && normal)) {
       type = 'Ice';
+    } else if ((isUGTypeChange = attacker.hasAbility('Incandescence') && normal)) {
+      type = 'Fire';
+    } else if ((isUGTypeChange = attacker.hasAbility('Dragonize') && normal)) {
+      type = 'Dragon';
+    } else if ((isUGTypeChange = attacker.hasAbility('Iron Maw') && !!move.flags.bite)) {
+      type = 'Steel';
     } else if ((isNormalize = attacker.hasAbility('Normalize'))) { // Boosts any type
       type = 'Normal';
     }
-    if (isGalvanize || isPixilate || isRefrigerate || isAerilate || isNormalize) {
+    if (isGalvanize || isPixilate || isRefrigerate || isAerilate || isNormalize || isUGTypeChange) {
       desc.attackerAbility = attacker.ability;
       hasAteAbilityTypeChange = true;
     } else if (isLiquidVoice) {
@@ -250,35 +264,40 @@ export function calculateSMSSSV(
     attacker.hasAbility('Scrappy') || field.defenderSide.isForesight;
   const isRingTarget =
     defender.hasItem('Ring Target') && !defender.hasAbility('Klutz');
-  const type1Effectiveness = getMoveEffectiveness(
-    gen,
-    move,
-    defender.types[0],
-    isGhostRevealed,
-    field.isGravity,
-    isRingTarget
-  );
-  const type2Effectiveness = defender.types[1]
-    ? getMoveEffectiveness(
-      gen,
-      move,
-      defender.types[1],
-      isGhostRevealed,
-      field.isGravity,
-      isRingTarget
-    )
-    : 1;
+  // Universal Gold: Fulminate (Electric hits Ground) and Corrosion (Poison hits Steel) treat that
+  // immunity as neutral
+  const effectivenessAgainst = (t: TypeName) => {
+    if (attacker.hasAbility('Fulminate') && move.hasType('Electric') && t === 'Ground') return 1;
+    if (attacker.hasAbility('Corrosion') && move.hasType('Poison') && t === 'Steel') return 1;
+    return getMoveEffectiveness(gen, move, t, isGhostRevealed, field.isGravity, isRingTarget);
+  };
+  const type1Effectiveness = effectivenessAgainst(defender.types[0]);
+  const type2Effectiveness = defender.types[1] ? effectivenessAgainst(defender.types[1]) : 1;
   let typeEffectiveness = type1Effectiveness * type2Effectiveness;
 
   if (defender.teraType) {
-    typeEffectiveness = getMoveEffectiveness(
-      gen,
-      move,
-      defender.teraType,
-      isGhostRevealed,
-      field.isGravity,
-      isRingTarget
-    );
+    typeEffectiveness = effectivenessAgainst(defender.teraType);
+  }
+
+  // Universal Gold: Flower Veil gives the user the Grass type on top of its own
+  if (defender.hasAbility('Flower Veil') && !defender.hasType('Grass') && !defender.teraType) {
+    typeEffectiveness *= effectivenessAgainst('Grass');
+    desc.defenderAbility = defender.ability;
+  }
+  if ((attacker.hasAbility('Fulminate') && move.hasType('Electric') && defender.hasType('Ground')) ||
+      (attacker.hasAbility('Corrosion') && move.hasType('Poison') && defender.hasType('Steel'))) {
+    desc.attackerAbility = attacker.ability;
+  }
+  // Universal Gold: Victory Star makes resisted moves neutral
+  if (attacker.hasAbility('Victory Star') && typeEffectiveness > 0 && typeEffectiveness < 1) {
+    typeEffectiveness = 1;
+    desc.attackerAbility = attacker.ability;
+  }
+  // Universal Gold: Verdant Blessing makes super-effective hits neutral in Grassy Terrain
+  if (defender.hasAbility('Verdant Blessing') && field.hasTerrain('Grassy') && typeEffectiveness > 1) {
+    typeEffectiveness = 1;
+    desc.defenderAbility = defender.ability;
+    desc.terrain = field.terrain;
   }
 
   if (typeEffectiveness === 0 && move.hasType('Ground') &&
@@ -322,13 +341,14 @@ export function calculateSMSSSV(
 
   if ((defender.hasAbility('Wonder Guard') && typeEffectiveness <= 1) ||
       (move.hasType('Grass') && defender.hasAbility('Sap Sipper')) ||
-      (move.hasType('Fire') && defender.hasAbility('Flash Fire', 'Well-Baked Body')) ||
+      // Universal Gold: Flash Fire no longer gives immunity (it halves Fire damage, see final mods)
+      (move.hasType('Fire') && defender.hasAbility('Well-Baked Body')) ||
       (move.hasType('Water') && defender.hasAbility('Dry Skin', 'Storm Drain', 'Water Absorb')) ||
       (move.hasType('Electric') &&
         defender.hasAbility('Lightning Rod', 'Motor Drive', 'Volt Absorb')) ||
       (move.hasType('Ground') &&
         !field.isGravity && !move.named('Thousand Arrows') &&
-        !defender.hasItem('Iron Ball') && defender.hasAbility('Levitate')) ||
+        !defender.hasItem('Iron Ball') && defender.hasAbility('Levitate', 'Eelevate')) ||
       (move.flags.bullet && defender.hasAbility('Bulletproof')) ||
       (move.flags.sound && !move.named('Clangorous Soul') && defender.hasAbility('Soundproof')) ||
       (move.priority > 0 && defender.hasAbility('Queenly Majesty', 'Dazzling', 'Armor Tail')) ||
@@ -401,6 +421,13 @@ export function calculateSMSSSV(
     }
   }
 
+  // Universal Gold: Triple Assault makes multi-hit moves always hit the max number of times
+  const multihit = (move as any).multihit;
+  if (attacker.hasAbility('Triple Assault') && Array.isArray(multihit)) {
+    move.hits = multihit[1];
+    desc.attackerAbility = attacker.ability;
+  }
+
   if (move.hits > 1) {
     desc.hits = move.hits;
   }
@@ -464,7 +491,12 @@ export function calculateSMSSSV(
   }
 
   const noWeatherBoost = defender.hasItem('Utility Umbrella');
-  if (!noWeatherBoost &&
+  // Universal Gold: Mega Sol makes the user's moves act as if in harsh sunlight
+  const megaSol = attacker.hasAbility('Mega Sol');
+  if (megaSol && !noWeatherBoost && move.hasType('Fire', 'Water')) {
+    baseDamage = pokeRound(OF32(baseDamage * (move.hasType('Fire') ? 6144 : 2048)) / 4096);
+    desc.attackerAbility = attacker.ability;
+  } else if (!noWeatherBoost &&
     ((field.hasWeather('Sun', 'Harsh Sunshine') && move.hasType('Fire')) ||
     (field.hasWeather('Rain', 'Heavy Rain') && move.hasType('Water')))
   ) {
@@ -509,6 +541,11 @@ export function calculateSMSSSV(
     stabMod += teraType && attacker.hasOriginalType(teraType) ? 1024 : 2048;
     desc.attackerAbility = attacker.ability;
   }
+  // Universal Gold: Flower Veil's added Grass type also gives Grass STAB
+  if (attacker.hasAbility('Flower Veil') && move.hasType('Grass') && stabMod === 4096) {
+    stabMod += 2048;
+    desc.attackerAbility = attacker.ability;
+  }
 
   const applyBurn =
     attacker.hasStatus('brn') &&
@@ -537,9 +574,13 @@ export function calculateSMSSSV(
   const finalMod = chainMods(finalMods, 41, 131072);
 
   let childDamage: number[] | undefined;
-  if (attacker.hasAbility('Parental Bond') && move.hits === 1 && !isSpread) {
+  // Universal Gold: Swarm gives Bug moves the Parental Bond effect
+  const swarmHitsTwice = attacker.hasAbility('Swarm') && move.hasType('Bug');
+  if ((attacker.hasAbility('Parental Bond') || swarmHitsTwice) && move.hits === 1 && !isSpread) {
     const child = attacker.clone();
     child.ability = 'Parental Bond (Child)' as AbilityName;
+    // Remembers that the second hit came from Swarm so it keeps Swarm's 1.2x boost
+    (child as any).isSwarmChild = swarmHitsTwice;
     checkMultihitBoost(gen, child, defender, move, field, desc);
     childDamage = calculateSMSSSV(gen, child, defender, move, field).damage as number[];
     desc.attackerAbility = attacker.ability;
@@ -946,10 +987,13 @@ export function calculateBPModsSMSSSV(
       attacker.hasStatus('brn') && move.category === 'Special') ||
     (attacker.hasAbility('Toxic Boost') &&
       attacker.hasStatus('psn', 'tox') && move.category === 'Physical') ||
-    (attacker.hasAbility('Mega Launcher') && move.flags.pulse) ||
+    // Universal Gold: Mega Launcher boosts its own list of pulse and cannon moves
+    (attacker.hasAbility('Mega Launcher') && move.named(...MEGA_LAUNCHER_MOVES)) ||
     (attacker.hasAbility('Strong Jaw') && move.flags.bite) ||
     (attacker.hasAbility('Steely Spirit') && move.hasType('Steel')) ||
-    (attacker.hasAbility('Sharpness') && move.flags.slicing)
+    (attacker.hasAbility('Sharpness') && move.flags.slicing) ||
+    // Universal Gold: Fire Mane
+    (attacker.hasAbility('Fire Mane') && move.hasType('Fire'))
   ) {
     bpMods.push(6144);
     desc.attackerAbility = attacker.ability;
@@ -985,7 +1029,10 @@ export function calculateBPModsSMSSSV(
     (attacker.hasAbility('Analytic') &&
       (turnOrder !== 'first' || field.defenderSide.isSwitching === 'out')) ||
     (attacker.hasAbility('Tough Claws') && move.flags.contact) ||
-    (attacker.hasAbility('Punk Rock') && move.flags.sound)
+    (attacker.hasAbility('Punk Rock') && move.flags.sound) ||
+    // Universal Gold: Lead Foot (kicks) and Collimator (beams), 1.3x
+    (attacker.hasAbility('Lead Foot') && move.named(...LEAD_FOOT_MOVES)) ||
+    (attacker.hasAbility('Collimator') && move.named(...COLLIMATOR_MOVES))
   ) {
     bpMods.push(5325);
     desc.attackerAbility = attacker.ability;
@@ -1019,7 +1066,13 @@ export function calculateBPModsSMSSSV(
   }
 
   if ((attacker.hasAbility('Reckless') && (move.recoil || move.hasCrashDamage)) ||
-      (attacker.hasAbility('Iron Fist') && move.flags.punch)
+      (attacker.hasAbility('Iron Fist') && move.flags.punch) ||
+      // Universal Gold: 1.2x type boosts
+      ((attacker.hasAbility('Swarm') || (attacker as any).isSwarmChild) && move.hasType('Bug')) ||
+      (attacker.hasAbility('Ion Storm') && move.hasType('Electric')) ||
+      (attacker.hasAbility('Shield of Justice') && move.hasType('Steel', 'Fighting')) ||
+      (attacker.hasAbility('Siege of Justice') && move.hasType('Rock', 'Fighting')) ||
+      (attacker.hasAbility('Arrow of Justice') && move.hasType('Grass', 'Fighting'))
   ) {
     bpMods.push(4915);
     desc.attackerAbility = attacker.ability;
@@ -1141,7 +1194,8 @@ export function calculateAtModsSMSSSV(
   // Slow Start also halves damage with special Z-moves
   if ((attacker.hasAbility('Slow Start') && attacker.abilityOn &&
        (move.category === 'Physical' || (move.category === 'Special' && move.isZ))) ||
-      (attacker.hasAbility('Defeatist') && attacker.curHP() <= attacker.maxHP() / 2)
+      // Universal Gold: Defeatist activates at 33% HP instead of 50%
+      (attacker.hasAbility('Defeatist') && attacker.curHP() <= attacker.maxHP() / 3)
   ) {
     atMods.push(2048);
     desc.attackerAbility = attacker.ability;
@@ -1171,15 +1225,14 @@ export function calculateAtModsSMSSSV(
     (attacker.curHP() <= attacker.maxHP() / 3 &&
       ((attacker.hasAbility('Overgrow') && move.hasType('Grass')) ||
        (attacker.hasAbility('Blaze') && move.hasType('Fire')) ||
-       (attacker.hasAbility('Torrent') && move.hasType('Water')) ||
-       (attacker.hasAbility('Swarm') && move.hasType('Bug')))) ||
+       (attacker.hasAbility('Torrent') && move.hasType('Water')))) ||
+       // Universal Gold: Swarm is no longer a pinch ability (see base power mods)
     (move.category === 'Special' && attacker.abilityOn && attacker.hasAbility('Plus', 'Minus'))
   ) {
     atMods.push(6144);
     desc.attackerAbility = attacker.ability;
-  } else if (attacker.hasAbility('Flash Fire') && attacker.abilityOn && move.hasType('Fire')) {
-    atMods.push(6144);
-    desc.attackerAbility = 'Flash Fire';
+  // Universal Gold: Flash Fire now gives +1 Atk and Sp. Atk when hit, instead of a Fire boost.
+  // Set those boosts in the calc's stat boxes when it has activated.
   } else if (
     (attacker.hasAbility('Steelworker') && move.hasType('Steel')) ||
     (attacker.hasAbility('Dragon\'s Maw') && move.hasType('Dragon')) ||
@@ -1193,7 +1246,9 @@ export function calculateAtModsSMSSSV(
     desc.attackerAbility = attacker.ability;
   } else if (
     (attacker.hasAbility('Water Bubble') && move.hasType('Water')) ||
-    (attacker.hasAbility('Huge Power', 'Pure Power') && move.category === 'Physical')
+    (attacker.hasAbility('Huge Power') && move.category === 'Physical') ||
+    // Universal Gold: Pure Power doubles Sp. Atk instead of Attack
+    (attacker.hasAbility('Pure Power') && move.category === 'Special')
   ) {
     atMods.push(8192);
     desc.attackerAbility = attacker.ability;
@@ -1473,8 +1528,24 @@ export function calculateFinalModsSMSSSV(
     desc.defenderAbility = defender.ability;
   }
 
-  if (defender.hasAbility('Solid Rock', 'Filter', 'Prism Armor') && typeEffectiveness > 1) {
+  // Universal Gold: Leaf Guard now reduces super-effective damage by 25%
+  if (defender.hasAbility('Solid Rock', 'Filter', 'Prism Armor', 'Leaf Guard') &&
+      typeEffectiveness > 1) {
     finalMods.push(3072);
+    desc.defenderAbility = defender.ability;
+  }
+
+  // Universal Gold: abilities that halve damage from certain moves
+  if ((defender.hasAbility('Flash Fire') && move.hasType('Fire')) ||
+      (defender.hasAbility('Snow Cloak') && move.hasType('Ice')) ||
+      (defender.hasAbility('Sand Veil') && move.hasType('Ground')) ||
+      (defender.hasAbility('Magma Armor') && move.hasType('Water', 'Ice')) ||
+      (defender.hasAbility('Pastel Veil') && move.hasType('Poison')) ||
+      (defender.hasAbility('Steam Engine') && move.hasType('Water', 'Fire')) ||
+      (defender.hasAbility('Shatterproof') && move.hasType('Rock')) ||
+      (defender.hasAbility('Aura Guard') && move.flags.contact && !attacker.hasAbility('Long Reach'))
+  ) {
+    finalMods.push(2048);
     desc.defenderAbility = defender.ability;
   }
 
@@ -1520,4 +1591,49 @@ export function calculateFinalModsSMSSSV(
 
 function hasTerrainSeed(pokemon: Pokemon) {
   return pokemon.hasItem('Electric Seed', 'Misty Seed', 'Grassy Seed', 'Psychic Seed');
+}
+
+// ---------------- Universal Gold ----------------
+
+const MEGA_LAUNCHER_MOVES = [
+  'Aura Sphere', 'Dark Pulse', 'Dragon Pulse', 'Water Pulse', 'Origin Pulse', 'Terrain Pulse',
+  'Flash Cannon', 'Armor Cannon', 'Hydro Cannon', 'Zap Cannon', 'Fleur Cannon', 'Dynamax Cannon',
+];
+
+const COLLIMATOR_MOVES = [
+  'Ice Beam', 'Hyper Beam', 'Signal Beam', 'Solar Beam', 'Psybeam', 'Bubble Beam', 'Charge Beam',
+  'Aurora Beam', 'Steel Beam', 'Meteor Beam', 'Prismatic Laser', 'Moongeist Beam', 'Octazooka',
+];
+
+const LEAD_FOOT_MOVES = [
+  'Blaze Kick', 'Stomp', 'Low Sweep', 'Low Kick', 'Double Kick', 'Triple Kick', 'Mega Kick',
+  'Jump Kick', 'High Jump Kick', 'Trop Kick', 'Rolling Kick', 'Thunderous Kick', 'Axe Kick',
+  'Aqua Step', 'Triple Axel', 'High Horsepower',
+];
+
+// Hivemind: -1 to all stats at 33% HP or less
+function checkHivemind(pokemon: Pokemon) {
+  if (pokemon.hasAbility('Hivemind') && pokemon.curHP() <= pokemon.maxHP() / 3) {
+    for (const stat of ['atk', 'def', 'spa', 'spd', 'spe'] as StatID[]) {
+      pokemon.boosts[stat] = Math.max(-6, pokemon.boosts[stat] - 1);
+    }
+  }
+}
+
+// Divination: +1 Def or Sp. Def, matching the category of the attacker's strongest damaging move.
+// Uses the attacker's four moves when the calc has them, otherwise the move being calculated.
+function checkDivination(gen: Generation, attacker: Pokemon, defender: Pokemon, move: Move) {
+  if (!defender.hasAbility('Divination')) return;
+  let bestPower = 0;
+  let category = move.category;
+  for (const name of ((attacker as any).moves || []) as string[]) {
+    const data: any = gen.moves.get(toID(name));
+    if (data && data.category !== 'Status' && data.bp > bestPower) {
+      bestPower = data.bp;
+      category = data.category;
+    }
+  }
+  if (category === 'Status') return;
+  const stat: StatID = category === 'Physical' ? 'def' : 'spd';
+  defender.boosts[stat] = Math.min(6, defender.boosts[stat] + 1);
 }

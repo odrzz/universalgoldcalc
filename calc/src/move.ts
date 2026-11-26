@@ -97,7 +97,7 @@ export class Move implements State.Move {
         } else if (options.hits) {
           this.hits = options.hits;
         } else {
-          this.hits = (options.ability === 'Skill Link')
+          this.hits = (options.ability === 'Skill Link' || (options.ability as string) === 'Triple Assault')
             ? data.multihit[1]
             : data.multihit[0] + 1;
         }
